@@ -2,7 +2,9 @@
 
 ## 项目概述
 
-单文件部署的版本管理系统。管理端（分支/版本 CRUD）+ 用户端（水平时间轴）。
+单文件部署的版本管理系统。管理端（分支/版本 CRUD，侧边栏布局）+ 用户端（水平时间轴，全屏独立页面）。
+
+`App.vue` 通过 `isTimeline` 计算属性检测路由，`/timeline` 时跳过侧边栏直接全屏渲染 `router-view`。
 
 - 后端：Go + Gin + SQLite（modernc.org/sqlite，纯 Go）
 - 前端：Vue 3 + Element Plus（编译后 go:embed 嵌入二进制）
@@ -34,7 +36,7 @@ frontend/src/views/
   Dashboard.vue         统计卡片 + 分支树(BranchTreeNode) + 最近版本表
   BranchList.vue        分页表格 + 新建/编辑/详情 el-dialog 弹窗
   VersionList.vue       筛选栏 + 分页表格 + 新建/编辑/详情 el-dialog 弹窗
-  ClientView.vue        SVG 水平时间轴：分支线 + 版本点 + 派生连线 + 悬浮提示
+  ClientView.vue        全屏暗色 SVG 水平时间轴（独立页面，无管理框架）
 frontend/src/components/
   BranchTreeNode.vue    递归分支树组件
 ```
@@ -117,6 +119,12 @@ type VersionQuery struct {
 
 ## 前端设计要点
 
+### 双布局设计
+- `App.vue` 用 `computed(() => route.path === '/timeline')` 判断当前模式
+- **管理端**（`/`、`/branches`、`/versions`）：`el-container` → `el-aside`（侧边栏）+ `el-main`（内容）
+- **用户端**（`/timeline`）：直接 `<div style="100vw;100vh"><router-view/></div>`，无任何管理框架
+- 侧边栏不包含时间轴入口（对管理用户隐藏）
+
 ### 弹窗式 CRUD
 - 主页面仅展示表格 + 顶部操作按钮
 - 新建/编辑/详情统一使用 `el-dialog`
@@ -128,7 +136,10 @@ type VersionQuery struct {
 - `el-pagination` 组件，支持 10/20/50 条/页
 - 筛选条件变化时 `reload()` 重置到第 1 页
 
-### ClientView 时间轴
+### ClientView 时间轴（全屏独立页面）
+- `App.vue` 检测 `/timeline` 路由，跳过侧边栏，全屏渲染
+- 暗色主题：背景 `#1a1b2e`，标题栏 `#22243a`，文本 `#c0c4e0`/`#606380`
+- flex 布局：标题栏（flex-shrink:0）+ SVG 区域（flex:1, overflow:auto）+ 图例栏（flex-shrink:0）
 - 纯 SVG，无第三方图表库
 - X 轴 = 时间（左→右），Y 轴 = 分支（上→下，父在子上方）
 - 分支排列：根分支 → 子分支（递归，确保父在子前）

@@ -1,15 +1,16 @@
 <template>
-  <div style="background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden">
+  <div style="display:flex;flex-direction:column;height:100vh;background:#1a1b2e;color:#e0e0e0">
     <!-- 顶部标题栏 -->
-    <div style="padding:16px 24px;border-bottom:1px solid #ebeef5;display:flex;justify-content:space-between;align-items:center">
-      <div>
-        <h3 style="margin:0 0 4px">版本发布时间轴</h3>
+    <div style="padding:12px 24px;background:#22243a;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:12px">
+        <h3 style="margin:0;color:#fff;font-size:18px">版本发布时间轴</h3>
         <span style="font-size:13px;color:#909399">{{ branches.length }} 个分支 · {{ totalVersions }} 个版本</span>
       </div>
+      <span style="font-size:12px;color:#606080">VerMan v2.0</span>
     </div>
 
-    <!-- SVG 图表区域（可横向滚动） -->
-    <div ref="scrollContainer" style="overflow-x:auto;overflow-y:hidden" @scroll="onScroll">
+    <!-- SVG 图表区域（可滚动，撑满剩余空间） -->
+    <div ref="scrollContainer" style="flex:1;overflow:auto;background:#1a1b2e" @scroll="onScroll">
       <svg
         :width="svgWidth" :height="svgHeight"
         style="display:block;min-width:800px"
@@ -22,17 +23,17 @@
           :y1="topMargin"
           :x2="leftMargin + (tick.ratio * chartWidth)"
           :y2="svgHeight - 10"
-          stroke="#ebeef5" stroke-width="1"
+          stroke="#2a2d45" stroke-width="1"
         />
 
         <!-- 时间轴 -->
-        <line :x1="leftMargin" :y1="topMargin" :x2="leftMargin+chartWidth" :y2="topMargin" stroke="#c0c4cc" stroke-width="1" />
+        <line :x1="leftMargin" :y1="topMargin" :x2="leftMargin+chartWidth" :y2="topMargin" stroke="#4a4d65" stroke-width="1" />
         <text
           v-for="(tick, i) in timeTicks"
           :key="'t'+i"
           :x="leftMargin + (tick.ratio * chartWidth)"
           :y="topMargin - 8"
-          text-anchor="middle" fill="#909399" font-size="12"
+          text-anchor="middle" fill="#606380" font-size="12"
         >{{ tick.label }}</text>
 
         <!-- 分支线段 + 版本点 -->
@@ -77,12 +78,12 @@
             <text
               :x="leftMargin + v.xRatio * chartWidth"
               :y="b.y - 12"
-              text-anchor="middle" fill="#606266" font-size="11"
+              text-anchor="middle" fill="#a0a4c0" font-size="11"
             >{{ v.version_number }}</text>
           </g>
 
           <!-- 分支名标签 -->
-          <text :x="10" :y="b.y + 4" fill="#303133" font-size="13" font-weight="600">{{ b.name }}</text>
+          <text :x="10" :y="b.y + 4" fill="#c0c4e0" font-size="13" font-weight="600">{{ b.name }}</text>
         </template>
 
         <!-- 悬浮提示框 -->
@@ -101,7 +102,7 @@
     </div>
 
     <!-- 图例 -->
-    <div style="padding:12px 24px;border-top:1px solid #ebeef5;display:flex;gap:20px;font-size:12px;color:#909399">
+    <div style="padding:10px 24px;border-top:1px solid #2a2d45;display:flex;gap:20px;font-size:12px;color:#606380;flex-shrink:0">
       <span>● 版本点</span>
       <span style="color:#67c23a">● released</span>
       <span style="color:#e6a23c">● draft</span>
