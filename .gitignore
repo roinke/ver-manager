@@ -1,0 +1,30 @@
+# 二进制
+verman
+verman.exe
+
+# 数据库
+*.db
+
+# Claude Code
+.claude/
+
+# 前端
+frontend/node_modules/
+
+# 临时文件
+*~
+verman~
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.test
+*.out
