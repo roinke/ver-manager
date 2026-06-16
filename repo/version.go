@@ -205,17 +205,32 @@ func UpdateVersion(id int64, v *model.Version) error {
 	return nil
 }
 
-// CountVersions 统计版本数量
-func CountVersions(productName string) (int, error) {
-	var count int
-	var err error
-	if productName != "" {
-		err = db.DB.QueryRow(
-			`SELECT COUNT(*) FROM versions WHERE product_name = ?`, productName,
-		).Scan(&count)
-	} else {
-		err = db.DB.QueryRow(`SELECT COUNT(*) FROM versions`).Scan(&count)
+// CountVersions 统计版本数量（支持 branch_id / product_name / status 筛选）
+func CountVersions(q model.VersionQuery) (int, error) {
+	var conditions []string
+	var args []interface{}
+
+	if q.BranchID != nil {
+		conditions = append(conditions, "v.branch_id = ?")
+		args = append(args, *q.BranchID)
 	}
+	if q.ProductName != "" {
+		conditions = append(conditions, "v.product_name = ?")
+		args = append(args, q.ProductName)
+	}
+	if q.Status != "" {
+		conditions = append(conditions, "v.status = ?")
+		args = append(args, q.Status)
+	}
+
+	whereClause := ""
+	if len(conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(conditions, " AND ")
+	}
+
+	query := fmt.Sprintf("SELECT COUNT(*) FROM versions v %s", whereClause)
+	var count int
+	err := db.DB.QueryRow(query, args...).Scan(&count)
 	return count, err
 }
 

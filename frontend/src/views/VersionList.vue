@@ -9,7 +9,7 @@
     <el-card shadow="never" style="margin-bottom:16px">
       <el-form :inline="true" :model="filters">
         <el-form-item label="分支">
-          <el-select v-model="filters.branch_id" clearable placeholder="全部" @change="reload">
+          <el-select v-model="filters.branch_id" clearable placeholder="全部" @change="reload" style="width:200px">
             <el-option v-for="b in branches" :key="b.id" :label="b.name" :value="b.id" />
           </el-select>
         </el-form-item>

@@ -88,6 +88,17 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <el-form-item label="基于版本">
+          <el-select v-model="selectedVersionId" clearable
+            placeholder="不指定（手动填写拉取时间）" style="width:100%"
+            :disabled="!form.parent_branch_id" :loading="versionsLoading"
+            @change="onVersionSelect"
+          >
+            <el-option v-for="v in parentVersions" :key="v.id"
+              :label="`${v.version_number} — ${v.product_name} (${v.build_time})`"
+              :value="v.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="拉取时间">
           <el-date-picker v-model="form.pulled_at" type="datetime" placeholder="选择实际拉分支时间"
             format="YYYY-MM-DD HH:mm:ss" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" />
@@ -127,18 +138,28 @@
 
         <!-- 关联版本 -->
         <el-divider />
-        <h4 style="margin-bottom:12px">📦 该分支的版本 ({{ detailVersions.length }})</h4>
-        <el-table v-if="detailVersions.length" :data="detailVersions" size="small" stripe>
-          <el-table-column prop="id" label="ID" width="50" />
-          <el-table-column prop="product_name" label="产品" width="120" />
-          <el-table-column prop="version_number" label="版本号" />
-          <el-table-column prop="build_time" label="构建时间" width="160" />
-          <el-table-column prop="status" label="状态" width="90">
-            <template #default="{ row }">
-              <el-tag size="small" :type="statusTag(row.status)">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
+        <h4 style="margin-bottom:12px">📦 该分支的版本 ({{ detailTotal }})</h4>
+        <template v-if="detailTotal > 0">
+          <el-table :data="detailVersions" size="small" stripe v-loading="detailLoading">
+            <el-table-column prop="id" label="ID" width="50" />
+            <el-table-column prop="product_name" label="产品" width="120" />
+            <el-table-column prop="version_number" label="版本号" min-width="120" />
+            <el-table-column prop="build_time" label="构建时间" width="160" />
+            <el-table-column prop="status" label="状态" width="90">
+              <template #default="{ row }">
+                <el-tag size="small" :type="statusTag(row.status)">{{ row.status }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div style="display:flex;justify-content:flex-end;margin-top:12px">
+            <el-pagination
+              v-model:current-page="detailPage" v-model:page-size="detailPageSize"
+              :total="detailTotal" :page-sizes="[5,10,20]"
+              layout="total,sizes,prev,pager,next" small
+              @size-change="loadDetailVersions" @current-change="loadDetailVersions"
+            />
+          </div>
+        </template>
         <el-empty v-else description="暂无版本" :image-size="60" />
       </template>
     </el-dialog>
@@ -146,7 +167,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getBranches, createBranch, updateBranch } from '../api/branch'
 import { getVersions } from '../api/version'
@@ -166,6 +187,11 @@ const form = reactive({
   description: '', pulled_at: '',
 })
 
+// 父分支版本列表
+const parentVersions = ref([])
+const versionsLoading = ref(false)
+const selectedVersionId = ref(null)
+
 const formTitle = computed(() => editingId.value ? '编辑分支' : '新建分支')
 const isEdit = computed(() => !!editingId.value)
 
@@ -173,6 +199,35 @@ const isEdit = computed(() => !!editingId.value)
 const parentOptions = computed(() => {
   if (!editingId.value) return branches.value
   return branches.value.filter(b => b.id !== editingId.value)
+})
+
+// 加载某个父分支下的全部版本
+async function loadParentVersions(branchId) {
+  versionsLoading.value = true
+  try {
+    const res = await getVersions({ branch_id: branchId, page_size: 9999 })
+    parentVersions.value = res.data || []
+  } catch { parentVersions.value = [] }
+  finally { versionsLoading.value = false }
+}
+
+// 选中版本时自动填充拉取时间
+function onVersionSelect(versionId) {
+  if (!versionId) return
+  const v = parentVersions.value.find(item => item.id === versionId)
+  if (v) {
+    form.pulled_at = v.build_time
+  }
+}
+
+// 监听父分支变化 → 加载版本列表
+watch(() => form.parent_branch_id, (newVal) => {
+  selectedVersionId.value = null
+  if (newVal) {
+    loadParentVersions(newVal)
+  } else {
+    parentVersions.value = []
+  }
 })
 
 function openCreate() {
@@ -187,11 +242,19 @@ function openEdit(row) {
   form.branch_type = row.branch_type
   form.description = row.description
   form.pulled_at = row.pulled_at || ''
+  selectedVersionId.value = null
   formVisible.value = true
+  if (row.parent_branch_id) {
+    loadParentVersions(row.parent_branch_id)
+  } else {
+    parentVersions.value = []
+  }
 }
 
 function resetForm() {
   editingId.value = null
+  parentVersions.value = []
+  selectedVersionId.value = null
   Object.assign(form, {
     name: '', parent_branch_id: null, branch_type: 'custom',
     description: '', pulled_at: '',
@@ -227,14 +290,31 @@ async function toggleBranch(row) {
 const detailVisible = ref(false)
 const detail = ref(null)
 const detailVersions = ref([])
+const detailLoading = ref(false)
+const detailPage = ref(1)
+const detailPageSize = ref(5)
+const detailTotal = ref(0)
 
 async function openDetail(row) {
   detail.value = row
   detailVisible.value = true
+  detailPage.value = 1
+  loadDetailVersions()
+}
+
+async function loadDetailVersions() {
+  if (!detail.value) return
+  detailLoading.value = true
   try {
-    const res = await getVersions({ branch_id: row.id })
+    const res = await getVersions({
+      branch_id: detail.value.id,
+      page: detailPage.value,
+      page_size: detailPageSize.value,
+    })
     detailVersions.value = res.data || []
+    detailTotal.value = res.total || 0
   } catch { detailVersions.value = [] }
+  finally { detailLoading.value = false }
 }
 
 // ---- 工具 ----

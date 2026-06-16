@@ -12,7 +12,7 @@ import (
 func GetDashboard(c *gin.Context) {
 	branchCount, _ := repo.CountBranches(true)
 	totalBranches, _ := repo.CountBranches(false)
-	versionCount, _ := repo.CountVersions("")
+	versionCount, _ := repo.CountVersions(model.VersionQuery{})
 
 	branches, _ := repo.ListBranches(false, 0, 0)
 	recentVersions, _ := repo.ListVersions(model.VersionQuery{Limit: 10})

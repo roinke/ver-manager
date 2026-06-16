@@ -54,7 +54,11 @@ func ListVersions(c *gin.Context) {
 		return
 	}
 
-	total, _ := repo.CountVersions(c.Query("product"))
+	total, _ := repo.CountVersions(model.VersionQuery{
+		BranchID:    branchID,
+		ProductName: c.Query("product"),
+		Status:      c.Query("status"),
+	})
 
 	c.JSON(http.StatusOK, gin.H{
 		"data":      versions,
