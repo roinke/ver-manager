@@ -128,26 +128,64 @@ type VersionQuery struct {
 ### 弹窗式 CRUD
 - 主页面仅展示表格 + 顶部操作按钮
 - 新建/编辑/详情统一使用 `el-dialog`
-- BranchList：表格 + 3 个弹窗（新建/edit共用表单，详情含关联版本表）
+- BranchList：表格 + 3 个弹窗（新建/edit共用表单 + 详情，不含关联版本表）
 - VersionList：筛选栏 + 表格 + 3 个弹窗 + el-pagination
+- **UI 安全规范**：前端不展示数据库 ID（id）、创建时间（created_at）、更新时间（updated_at），仅展示业务字段
 
 ### 分页
 - 列表接口返回 `total/page/page_size`
 - `el-pagination` 组件，支持 10/20/50 条/页
 - 筛选条件变化时 `reload()` 重置到第 1 页
 
-### ClientView 时间轴（全屏独立页面）
-- `App.vue` 检测 `/timeline` 路由，跳过侧边栏，全屏渲染
+### ClientView 时间轴（全屏独立页面，2026-06-17 重写）
+- `App.vue` 检测 `/timeline` 路由，`overflow:hidden` 防止双滚动条，全屏渲染
 - 暗色主题：背景 `#1a1b2e`，标题栏 `#22243a`，文本 `#c0c4e0`/`#606380`
-- flex 布局：标题栏（flex-shrink:0）+ SVG 区域（flex:1, overflow:auto）+ 图例栏（flex-shrink:0）
+
+**双层面板布局**：
+```
+┌─ 标题栏 ──────────────────────────────────────┐
+│  标题 + 统计          │  缩放% + 重置视图按钮   │
+├──────────┬────────────────────────────────────┤
+│ 分支名面板 │  SVG 时间轴区域                    │
+│ (150px)   │  overflow-x:auto（水平滚动）        │
+│ flex-     │  overflow-y:hidden                 │
+│ shrink:0  │                                    │
+├──────────┴────────────────────────────────────┤
+└─ 图例栏 ──────────────────────────────────────┘
+```
+- 左侧分支名面板与 SVG 区域共享垂直滚动（外层 `overflow-y:auto`），分支名不随水平滚动
+- 分支名使用绝对定位的 `<div>`，Y 坐标与 SVG 分支线对齐，颜色一致
+
+**缩放机制**：
+- `zoom` ref（0.3–8.0），滚轮以鼠标位置为中心缩放（每次 15%），不依赖 `pending tasks```
+- 核心思路：zoom 仅乘入 X 坐标计算（`xPos = leftMargin + ratio × chartWidth × zoom`），**所有视觉属性常量**（font-size、r、stroke-width 不除以 zoom）
+- 标题栏显示 `Math.round(zoom * 100)%` + "重置视图"按钮（zoom=1 + 回到一年视图）
+
+**默认一年视图**：
+- 找最新 `build_time` → `latestTime`，默认窗口 `[latestTime - 365天, latestTime + 30天]`
+- 加载后 `scrollToDefaultView()` 设定 scrollLeft
+- 更早数据向左滚动或缩小查看
+
+**铺满屏幕**：
+- `ResizeObserver` 监听主区域容器 → `containerHeight`
+- `branchSpacing = clamp(64, (containerHeight - 70) / branchCount, 120)`
+- `svgHeight = max(containerHeight, topMargin + branchCount × branchSpacing + 20)`
+
+**版本标签**：35° 斜排（左下→右上），`rotate(-35)` 绕版本点中心，`text-anchor="start"`
+
+**鼠标拖拽平移**：pointerdown/move/up 事件，仅左键
+
+**悬浮提示**（120ms 延迟隐藏防抖）：
+- 显示：产品名 + 版本号、构建时间、版本描述
+- 不显示：status、commit_hash 等非关键字段
+
 - 纯 SVG，无第三方图表库
 - X 轴 = 时间（左→右），Y 轴 = 分支（上→下，父在子上方）
 - 分支排列：根分支 → 子分支（递归，确保父在子前）
 - 版本点为 `r=6` 圆，颜色映射：released=绿 draft=橙 deprecated=灰 revoked=红
 - 派生关系为竖虚线，拉取点为 `r=4` 小圆
 - 颜色循环：8 色预定义调色板
-- 时间刻度：每约 45 天一个刻度
-- 悬浮提示：SVG rect+text，显示版本详情
+- 时间刻度自适应：`count = chartWidth / 120`，宽间距 "年-月"，密间距 "月/日"
 - 数据源：`getAllBranches()` + `getVersions({limit:9999})`
 
 ### SPA 服务

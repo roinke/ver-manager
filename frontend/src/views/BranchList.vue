@@ -8,7 +8,6 @@
     <!-- 分支列表 -->
     <el-card shadow="never">
       <el-table :data="branches" stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="name" label="分支名称" width="160">
           <template #default="{ row }">
             <el-link type="primary" @click="openDetail(row)">{{ row.name }}</el-link>
@@ -119,7 +118,6 @@
     <el-dialog v-model="detailVisible" title="分支详情" width="680px">
       <template v-if="detail">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
           <el-descriptions-item label="名称"><strong>{{ detail.name }}</strong></el-descriptions-item>
           <el-descriptions-item label="父分支">{{ getParentName(detail.parent_branch_id) }}</el-descriptions-item>
           <el-descriptions-item label="类型">
@@ -132,35 +130,8 @@
           </el-descriptions-item>
           <el-descriptions-item label="拉取时间">{{ detail.pulled_at || '(未填写)' }}</el-descriptions-item>
           <el-descriptions-item label="描述" :span="2">{{ detail.description || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ detail.created_at }}</el-descriptions-item>
-          <el-descriptions-item label="更新时间">{{ detail.updated_at }}</el-descriptions-item>
         </el-descriptions>
 
-        <!-- 关联版本 -->
-        <el-divider />
-        <h4 style="margin-bottom:12px">📦 该分支的版本 ({{ detailTotal }})</h4>
-        <template v-if="detailTotal > 0">
-          <el-table :data="detailVersions" size="small" stripe v-loading="detailLoading">
-            <el-table-column prop="id" label="ID" width="50" />
-            <el-table-column prop="product_name" label="产品" width="120" />
-            <el-table-column prop="version_number" label="版本号" min-width="120" />
-            <el-table-column prop="build_time" label="构建时间" width="160" />
-            <el-table-column prop="status" label="状态" width="90">
-              <template #default="{ row }">
-                <el-tag size="small" :type="statusTag(row.status)">{{ row.status }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-          <div style="display:flex;justify-content:flex-end;margin-top:12px">
-            <el-pagination
-              v-model:current-page="detailPage" v-model:page-size="detailPageSize"
-              :total="detailTotal" :page-sizes="[5,10,20]"
-              layout="total,sizes,prev,pager,next" small
-              @size-change="loadDetailVersions" @current-change="loadDetailVersions"
-            />
-          </div>
-        </template>
-        <el-empty v-else description="暂无版本" :image-size="60" />
       </template>
     </el-dialog>
   </div>
@@ -289,32 +260,10 @@ async function toggleBranch(row) {
 // ---- 详情 ----
 const detailVisible = ref(false)
 const detail = ref(null)
-const detailVersions = ref([])
-const detailLoading = ref(false)
-const detailPage = ref(1)
-const detailPageSize = ref(5)
-const detailTotal = ref(0)
 
 async function openDetail(row) {
   detail.value = row
   detailVisible.value = true
-  detailPage.value = 1
-  loadDetailVersions()
-}
-
-async function loadDetailVersions() {
-  if (!detail.value) return
-  detailLoading.value = true
-  try {
-    const res = await getVersions({
-      branch_id: detail.value.id,
-      page: detailPage.value,
-      page_size: detailPageSize.value,
-    })
-    detailVersions.value = res.data || []
-    detailTotal.value = res.total || 0
-  } catch { detailVersions.value = [] }
-  finally { detailLoading.value = false }
 }
 
 // ---- 工具 ----

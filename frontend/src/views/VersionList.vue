@@ -33,7 +33,6 @@
     <!-- 版本列表 -->
     <el-card shadow="never">
       <el-table :data="versions" stripe v-loading="loading">
-        <el-table-column prop="id" label="ID" width="60" />
         <el-table-column prop="product_name" label="产品" width="140" />
         <el-table-column prop="version_number" label="版本号" width="180">
           <template #default="{ row }">
@@ -147,7 +146,6 @@
     <el-dialog v-model="detailVisible" title="版本详情" width="620px">
       <template v-if="detail">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="ID">{{ detail.id }}</el-descriptions-item>
           <el-descriptions-item label="产品"><strong>{{ detail.product_name }}</strong></el-descriptions-item>
           <el-descriptions-item label="版本号">
             <el-tag>{{ detail.version_number }}</el-tag>
@@ -174,7 +172,6 @@
             <pre v-if="detail.release_notes" style="margin:0;white-space:pre-wrap;font-size:13px">{{ detail.release_notes }}</pre>
             <span v-else>-</span>
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ detail.created_at }}</el-descriptions-item>
         </el-descriptions>
       </template>
     </el-dialog>

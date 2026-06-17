@@ -1,6 +1,6 @@
 # 版本管理系统 — 需求记录
 
-日期：2026-06-16
+日期：2026-06-16（初始）→ 2026-06-17（时间轴重写 + UI 安全加固）
 
 ## 一、已完成并保留的需求
 
@@ -20,55 +20,52 @@
 
 ---
 
-## 二、已完成但已回退的需求（时间轴相关）
+## 二、时间轴重写（2026-06-17）
 
-> 以下需求在 `ClientView.vue` 和 `App.vue` 上实现过，后续因体验问题整体回退到最初版本。保留作为后续参考。
+> 原有 9 项时间轴增强（缩放平移、斜排标签、一年默认视图等）在 commit `3ad5de9` 后整体回退。2026-06-17 完全重写 `ClientView.vue`，以更清晰的架构重新实现核心功能。
 
-### 1. 时间轴缩放与平移
-- 鼠标滚轮缩放（以鼠标位置为中心），拖拽平移，缩放范围 30%~800%
-- 标题栏显示缩放百分比 + 重置视图按钮
+### 1. 分支名固定在左侧
+- **实现**：双层面板布局。左侧 150px `div` 面板（`flex-shrink:0`），分支名 `absolute` 定位与 SVG 分支线 Y 对齐；右侧 SVG 容器 `overflow-x:auto` 独立水平滚动。外层 `overflow-y:auto` 实现两者同步垂直滚动。
+- **效果**：水平滚动时间轴时分支名始终可见。
 
-### 2. 版本标签斜排显示
-- 版本名由原来的水平居中改为 35° 斜排（左下→右上），减少重叠
+### 2. 默认展示最近一年数据
+- **实现**：`scrollToDefaultView()` 计算可视窗口 `[latestTime - 365天, latestTime + 30天]`，数据加载后 `nextTick` + 设置 `scrollLeft`。更早数据通过向左滚动或缩小查看。
+- **关键变量**：`YEAR_MS = 365 * 86400000`，`PADDING_MS = 30 * 86400000`
 
-### 3. 默认展示最近一年
-- 打开时间轴默认只显示最近一年的版本，更早数据通过向左拖拽查看
-- 通过 `fitToRecentYear()` 计算初始 `zoom` 和 `panX`
+### 3. 鼠标缩放，视觉元素大小不变
+- **实现**：`zoom` ref（0.3–8.0），滚轮 `wheel` 事件以鼠标 X 为中心缩放（步长 15%）。zoom 仅乘入 X 坐标（`xPos = leftMargin + ratio × chartWidth(zoom)`），**font-size / r / stroke-width 全部常量**，不使用 SVG `transform:scale()`。
+- **辅助**：缩放后 `nextTick` 调整 `scrollLeft` 保持鼠标下方时间点不动。标题栏显示百分比 + "重置视图"按钮。
 
-### 4. 缩放时文字和几何元素保持屏幕大小不变
-- 所有 `font-size`、`stroke-width`、`r` 使用 `基准值 / zoom` 动态计算
-- 缩放只拉开间距，不改变元素视觉大小
+### 4. 时间轴铺满整个屏幕
+- **实现**：`ResizeObserver` 监听主区域高度 → `containerHeight`。`branchSpacing = clamp(64, (containerHeight - 70) / branchCount, 120)`。`svgHeight = max(containerHeight, topMargin + count × spacing + 20)`。
+- **效果**：分支少时分距拉大填满屏幕，分支多时保持 64px 最小间距并触发垂直滚动。
 
-### 5. 时间刻度自适应缩放
-- 刻度数量 = `chartWidth × zoom / 120`，缩放越大刻度越密
-- 标签格式自动切换：宽间距显示"年-月"，密间距显示"月/日"
+### 5. 版本标签斜排显示
+- **实现**：版本名 `rotate(-35)` 绕版本点中心，`text-anchor="start"`，"左下→右上"方向，减少水平重叠。
 
-### 6. 分支名固定在左侧
-- 分支名独立于缩放分组，随纵向平移但不随水平平移滚动
-- 加半透明背景条防止线条穿透
+### 6. 鼠标拖拽平移
+- **实现**：`pointerdown/move/up` 事件，仅左键，调整 `scrollLeft`。`cursor: grabbing` 视觉反馈。
 
-### 7. 纵向间距固定不随缩放变化
-- 所有 Y 坐标除以 zoom，配合 `scale(zoom)` 后屏幕纵向位置恒定
+### 7. 悬浮提示优化
+- **实现**：仅展示产品名 + 版本号、构建时间、版本描述。120ms 延迟隐藏防抖。
+- **不展示**：status、commit_hash 等非关键字段。
 
-### 8. SVG 铺满容器
-- `svgHeight` 通过 `ResizeObserver` 动态跟踪容器高度，确保不留底部空白
-
-### 9. 时间轴数据刷新
-- `App.vue` 改为单一 `<router-view>` + `v-show` 控制侧边栏，`timelineKey` 强制重建组件
-- `ClientView.vue` 添加 `watch(route.path)` 在每次导航到 `/timeline` 时重新加载数据
+### 8. 时间刻度自适应
+- **实现**：`tickCount = chartWidth / 120`，从 `[1h, 1d, 7d, 30d, 90d, 180d, 365d]` 中选择最接近的间隔。宽间距 "年-月"，密间距 "月/日"。
 
 ---
 
-## 三、时间轴当前状态
+## 三、UI 安全加固（2026-06-17）
 
-`ClientView.vue` 和 `App.vue` 已恢复为原始版本（commit `3ad5de9`）：
+| 改动 | 文件 | 说明 |
+|------|------|------|
+| 移除主表格 ID 列 | `BranchList.vue`, `VersionList.vue` | 分支和版本列表表格不再展示数据库 ID |
+| 移除详情弹窗 ID 行 | `BranchList.vue`, `VersionList.vue` | 详情弹窗不再展示 `detail.id` |
+| 移除关联版本表 ID 列 | `BranchList.vue` | 分支详情中版本子表不再展示版本 ID |
+| 移除创建/更新时间 | `BranchList.vue`, `VersionList.vue` | 详情弹窗不再展示 `created_at` / `updated_at` |
+| 移除分支详情中的版本列表 | `BranchList.vue` | 分支详情弹窗不再包含"该分支的版本"区块（含表格+分页+空状态），相关变量 `detailVersions`/`detailLoading`/`detailPage`/`detailPageSize`/`detailTotal`/`loadDetailVersions` 一并清理 |
 
-- 全屏暗色 SVG 水平时间轴，无缩放平移
-- 原始 `v-if`/`v-else` 双 `<router-view>` 布局
-- 版本名水平居中显示
-- 时间刻度每约 45 天一个
-- 分支间距 64px，topMargin 50px
-- 原生 `overflow:auto` 滚动
+**原则**：前端仅展示业务字段，不暴露数据库元数据（ID、时间戳）。
 
 ---
 
@@ -82,9 +79,17 @@
 
 ---
 
-## 五、未来可考虑的需求
+## 五、App.vue 改动
 
-1. 时间轴整体重新设计（当前版本体验不佳）
+| 改动 | 说明 |
+|------|------|
+| 时间轴容器增加 `overflow:hidden` | 防止 `/timeline` 路由下 body 出现双滚动条 |
+
+---
+
+## 六、未来可考虑的需求
+
+1. 时间轴进一步的交互优化（触屏支持、动画过渡）
 2. 分支/版本的批量导入导出
 3. 版本对比功能
 4. 搜索/全文检索
