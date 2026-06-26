@@ -33,44 +33,27 @@
 
 ## 二、环境准备
 
-### 2.1 Docker 安装（snap 版）— 本次验证环境
+### 2.1 安装 Docker（官方 apt 仓库）
 
 ```bash
-# 确认安装方式
-which docker
-# /snap/bin/docker  → snap 版
+# 添加 Docker 官方 GPG 密钥
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
 
-snap list | grep docker
+# 添加 Docker 仓库
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# 安装
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# 将当前用户加入 docker 组（免 sudo）
+sudo usermod -aG docker $USER
+# 退出重新登录后生效，或当前终端执行: newgrp docker
 ```
 
 ### 2.2 配置 Docker 镜像加速（国内必备）
-
-**snap 版 Docker**（配置文件路径不同）：
-
-```bash
-# 查看当前配置
-sudo cat /var/snap/docker/current/config/daemon.json
-
-# 写入镜像加速
-sudo tee /var/snap/docker/current/config/daemon.json <<'EOF'
-{
-    "log-level":        "error",
-    "registry-mirrors": [
-        "https://mirror.ccs.tencentyun.com"
-    ]
-}
-EOF
-
-# 重启生效
-sudo snap restart docker
-
-# 验证
-sudo docker info 2>&1 | grep -A 3 "Registry Mirrors"
-# Registry Mirrors:
-#   https://mirror.ccs.tencentyun.com/
-```
-
-**systemd 版 Docker**（`apt/yum` 安装）：
 
 ```bash
 sudo tee /etc/docker/daemon.json <<'EOF'
@@ -81,8 +64,12 @@ sudo tee /etc/docker/daemon.json <<'EOF'
 }
 EOF
 
-sudo systemctl daemon-reload
 sudo systemctl restart docker
+
+# 验证
+docker info 2>&1 | grep -A 3 "Registry Mirrors"
+# Registry Mirrors:
+#   https://mirror.ccs.tencentyun.com/
 ```
 
 ### 2.3 Go 代理配置（本地开发时用）
