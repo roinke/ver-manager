@@ -1,23 +1,21 @@
 # 二进制
 verman
-verman-static
 verman.exe
-
-# Docker 镜像导出
-*.tar
 
 # 数据库
 *.db
+*.db-journal
+*.db-wal
 
-# Claude Code
-.claude/
-
-# 前端
+# Node
 frontend/node_modules/
 
-# 临时文件
-*~
-verman~
+# Git
+.git/
+.gitignore
+
+# Claude
+.claude/
 
 # IDE
 .idea/
@@ -29,6 +27,5 @@ verman~
 .DS_Store
 Thumbs.db
 
-# Go
-*.test
-*.out
+# 文档（不需要打进镜像）
+*.md

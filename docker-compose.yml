@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  verman:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: verman:latest
+    container_name: verman
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # 持久化数据库文件
+      - verman-data:/data
+    environment:
+      - PORT=8080
+      - VERMAN_DB=/data/verman.db
+      - TZ=Asia/Shanghai
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost:8080"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  verman-data:
+    driver: local
